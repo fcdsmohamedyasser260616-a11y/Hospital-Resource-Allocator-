@@ -1,0 +1,139 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+# Project 15: Hospital Resource Allocator (Refactored Logic)
+# FCDS Alexandria University - Spring 2026
+
+class HospitalGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("FCDS - Hospital Resource Allocator (Greedy AI)")
+        self.root.geometry("900x700")
+        self.root.configure(bg="#f0f2f5")
+
+        # 1. Resources and Data
+        self.resource_counts = {'Doctor': 5, 'Room': 4, 'Equipment': 3}
+        self.patients = [
+            {"name": "Ahmed Ali", "urgency": 5, "type": "Doctor", "arrival": 0},
+            {"name": "Mohamed Mahmoud", "urgency": 4, "type": "Room", "arrival": 2},
+            {"name": "Mahmoud Sabry", "urgency": 5, "type": "Equipment", "arrival": 5},
+            {"name": "Sayed Basha", "urgency": 3, "type": "Doctor", "arrival": 8},
+            {"name": "Yazan Mohamed", "urgency": 5, "type": "Room", "arrival": 10},
+            {"name": "Ibrahim Hassan", "urgency": 2, "type": "Equipment", "arrival": 12},
+            {"name": "Mostafa Zein", "urgency": 4, "type": "Doctor", "arrival": 15},
+            {"name": "Amr Khaled", "urgency": 1, "type": "Room", "arrival": 18},
+            {"name": "Hany Ramzy", "urgency": 5, "type": "Equipment", "arrival": 20},
+            {"name": "Tamer Hosny", "urgency": 3, "type": "Doctor", "arrival": 25},
+            {"name": "Khaled Yasser", "urgency": 4, "type": "Room", "arrival": 30},
+            {"name": "Ziad Ahmed", "urgency": 2, "type": "Equipment", "arrival": 35},
+            {"name": "Omar Gaber", "urgency": 5, "type": "Doctor", "arrival": 40},
+            {"name": "Youssef Aly", "urgency": 3, "type": "Room", "arrival": 45},
+            {"name": "Kareem Adel", "urgency": 4, "type": "Equipment", "arrival": 50},
+            {"name": "Hassan Galal", "urgency": 2, "type": "Doctor", "arrival": 55},
+            {"name": "Sherif Mounir", "urgency": 5, "type": "Room", "arrival": 60},
+            {"name": "Ezz El-Din", "urgency": 1, "type": "Equipment", "arrival": 65},
+            {"name": "Osama Fawzy", "urgency": 4, "type": "Doctor", "arrival": 70},
+            {"name": "Ramadan Sobhy", "urgency": 3, "type": "Room", "arrival": 75},
+            {"name": "Magdy Yakoub", "urgency": 5, "type": "Equipment", "arrival": 80},
+            {"name": "Ayman Ashraf", "urgency": 4, "type": "Doctor", "arrival": 85},
+            {"name": "Hamdy Fathy", "urgency": 2, "type": "Room", "arrival": 90},
+            {"name": "Walid Soliman", "urgency": 5, "type": "Equipment", "arrival": 95},
+            {"name": "Bassem Morsy", "urgency": 3, "type": "Doctor", "arrival": 100},
+            {"name": "Salah Mohsen", "urgency": 4, "type": "Room", "arrival": 105},
+            {"name": "Nabil Emad", "urgency": 2, "type": "Equipment", "arrival": 110},
+            {"name": "Afsha Ahmed", "urgency": 5, "type": "Doctor", "arrival": 115},
+            {"name": "Ali Maaloul", "urgency": 1, "type": "Room", "arrival": 118},
+            {"name": "Marwan Attia", "urgency": 3, "type": "Equipment", "arrival": 120},
+        ]
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        header = tk.Frame(self.root, bg="#2c3e50", height=80)
+        header.pack(fill="x")
+        tk.Label(header, text="Hospital Resource Allocator (Greedy Agent)", fg="white", bg="#2c3e50", font=("Arial", 18, "bold")).pack(pady=20)
+
+        main_frame = tk.Frame(self.root, bg="#f0f2f5")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        table_frame = tk.LabelFrame(main_frame, text="Assignment Schedule", font=("Arial", 12, "bold"), bg="white")
+        table_frame.pack(side="left", fill="both", expand=True, padx=5)
+
+        self.tree = ttk.Treeview(table_frame, columns=("Patient", "Resource", "Start", "End"), show='headings')
+        self.tree.heading("Patient", text="Patient Name")
+        self.tree.heading("Resource", text="Resource Type")
+        self.tree.heading("Start", text="Start (min)")
+        self.tree.heading("End", text="End (min)")
+        self.tree.pack(fill="both", expand=True, padx=5, pady=5)
+
+        stats_frame = tk.LabelFrame(main_frame, text="Statistics", font=("Arial", 12, "bold"), bg="white", width=250)
+        stats_frame.pack(side="right", fill="both", padx=5)
+
+        self.stats_label = tk.Label(stats_frame, text="Click 'Run' to see stats", bg="white", font=("Arial", 10), justify="left")
+        self.stats_label.pack(pady=20, padx=10)
+
+        btn_run = tk.Button(self.root, text="Run Greedy Simulation", command=self.run_logic, bg="#27ae60", fg="white", font=("Arial", 12, "bold"), height=2)
+        btn_run.pack(fill="x", side="bottom", padx=20, pady=20)
+
+    def run_logic(self):
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+
+        pending_patients = self.patients.copy()
+        # Track when each specific resource instance will become free
+        resource_busy_until = {
+            'Doctor': [0] * self.resource_counts['Doctor'],
+            'Room': [0] * self.resource_counts['Room'],
+            'Equipment': [0] * self.resource_counts['Equipment']
+        }
+        
+        usage_time = {'Doctor': 0, 'Room': 0, 'Equipment': 0}
+        schedule = []
+        treatment_duration = 20
+        sim_end_time = 200 # Extended to allow all to be treated
+        
+        for current_time in range(0, sim_end_time + 1, 5):
+            # 1. Filter patients who have arrived and are not yet treated
+            available_now = [p for p in pending_patients if p['arrival'] <= current_time]
+            
+            # 2. Sort by Urgency (Descending) then Arrival (Ascending)
+            available_now.sort(key=lambda x: (-x['urgency'], x['arrival']))
+
+            for p in available_now:
+                res_type = p['type']
+                # Check if any resource of this type is free
+                # A resource is free if its 'busy_until' time <= current_time
+                free_resources = [i for i, free_at in enumerate(resource_busy_until[res_type]) if free_at <= current_time]
+                
+                if free_resources:
+                    target_idx = free_resources[0]
+                    start_time = current_time
+                    end_time = current_time + treatment_duration
+                    
+                    # Mark resource as busy
+                    resource_busy_until[res_type][target_idx] = end_time
+                    usage_time[res_type] += treatment_duration
+                    
+                    schedule.append((p['name'], res_type, start_time, end_time))
+                    pending_patients.remove(p)
+
+        # Update Table
+        for entry in schedule:
+            self.tree.insert("", "end", values=entry)
+
+        # Update Stats
+        stats_text = "Resource Utilisation:\n"
+        total_sim_time = sim_end_time
+        for k, v in usage_time.items():
+            max_capacity = self.resource_counts[k] * total_sim_time
+            util = (v / max_capacity) * 100 if max_capacity > 0 else 0
+            stats_text += f" - {k}: {min(util, 100.0):.1f}%\n"
+        
+        stats_text += f"\nUntreated: {len(pending_patients)}"
+        self.stats_label.config(text=stats_text)
+        messagebox.showinfo("Success", "Simulation Completed with Fixed Logic!")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = HospitalGUI(root)
+    root.mainloop()
